@@ -1,0 +1,18 @@
+[project]
+name = "mfp-mcp-vercel"
+version = "0.1.0"
+description = "MyFitnessPal MCP connector for Claude, deployed on Vercel"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    # Upstream server (tools, cookie loader), pinned to a tested commit
+    "myfitnesspal-mcp-service @ git+https://github.com/delize/myfitness-mcp@4023080ba8cc28942ca2fdd8d7fc78119a169852",
+    # Pinned: app.py overrides MCP SDK internals, and myfitnesspal 2.1.2 pins typing-extensions
+    "mcp==1.30.0",
+    "myfitnesspal==2.1.2",
+]
+
+[tool.uv]
+package = false
+
+[tool.vercel]
+entrypoint = "app:app"
