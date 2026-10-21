@@ -60,6 +60,31 @@ if _raw_cookies:
     os.environ["MFP_COOKIES_FILE"] = str(_cookie_file)
     os.environ.pop("MFP_FIREFOX_PROFILE_DIR", None)
 
+# Cookies from MFP_COOKIES have no domain info, so they are stored under
+# ".myfitnesspal.com". When MFP rotates one (e.g. the Rails session cookie)
+# via Set-Cookie on "www.myfitnesspal.com", requests keeps both copies and
+# sends the stale one too, which breaks CSRF on POSTs (search, add to diary)
+# with a redirect to /account/login. Keep only the newest cookie per name.
+import requests  # noqa: E402
+from requests.cookies import RequestsCookieJar  # noqa: E402
+
+
+class _NewestCookieWinsJar(RequestsCookieJar):
+    def set_cookie(self, cookie, *args, **kwargs):
+        for old in list(self):
+            if old.name == cookie.name and (old.domain, old.path) != (cookie.domain, cookie.path):
+                self.clear(old.domain, old.path, old.name)
+        return super().set_cookie(cookie, *args, **kwargs)
+
+
+class _MfpSession(requests.Session):
+    def __init__(self):
+        super().__init__()
+        self.cookies = _NewestCookieWinsJar()
+
+
+requests.Session = _MfpSession
+
 # Register the stateless OAuth provider under the upstream module name, so the
 # server's `from .oauth_provider import SinglePasscodeOAuthProvider` picks it up.
 _spec = importlib.util.spec_from_file_location("myfitnesspal_mcp.oauth_provider", ROOT / "stateless_oauth.py")
